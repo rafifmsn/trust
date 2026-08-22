@@ -1,0 +1,40 @@
+services:
+  trust-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: trust:latest
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_URL=redis://redis-store:6379
+      - ADMIN_API_KEY=benchmark-admin-key
+    cpuset: "0-1" # Pin the API strictly to CPU cores 0 and 1
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 512M # Allocate a clean 512MB RAM cap
+    depends_on:
+      - redis-store
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - benchmark-net
+
+  redis-store:
+    image: redis:7-alpine
+    # Disable appendonly disk syncing to remove Disk I/O overhead during load tests
+    command: ["redis-server", "--appendonly", "no"]
+    cpuset: "2" # Pin Redis strictly to CPU core 2
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256M # Allocate a clean 256MB RAM cap
+    networks:
+      - benchmark-net
+
+networks:
+  benchmark-net:
+    driver: bridge

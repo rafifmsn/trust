@@ -1,0 +1,32 @@
+services:
+  trust:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: trust:latest
+    restart: always
+    environment:
+      - REDIS_URL=redis://redis-store:6379
+      - ADMIN_API_KEY
+      - UMAMI_URL
+      - UMAMI_WEBSITE_ID
+    depends_on:
+      - redis-store
+    networks:
+      - internal-bridge
+
+  redis-store:
+    image: redis:7-alpine
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - internal-bridge
+    volumes:
+      - redis-data:/data
+
+networks:
+  internal-bridge:
+    driver: bridge
+
+volumes:
+  redis-data:

@@ -1,0 +1,173 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import Button from '@/components/starwind/button/Button.astro';
+import Input from '@/components/starwind/input/Input.astro';
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, TableCaption } from '@/components/starwind/table';
+---
+
+<Layout title="Trust - Rafif Muchsin">
+  <main class="max-w-4xl mx-auto px-6 py-12 flex flex-col gap-8">
+    <div class="space-y-2 text-center md:text-left">
+      <h1 class="text-3xl lg:text-4xl font-bold tracking-tight text-foreground font-sans">
+        rafifmsn/trust
+      </h1>
+      <p class="text-muted-foreground font-sans text-base text-balance">
+        Zero-Trust Link and Domain Triage Dashboard
+      </p>
+    </div>
+
+    <!-- Verification Card -->
+    <div class="p-6 bg-card border border-border rounded-xl shadow-sm space-y-4">
+      <div class="flex flex-col sm:flex-row gap-3 mb-0">
+        <div class="grow">
+          <Input
+            id="domain-input"
+            type="text"
+            placeholder="Enter domains separated by commas (e.g., google.com, faceb00k.com)"
+            class="w-full text-base font-sans"
+          />
+        </div>
+        <Button id="verify-btn" variant="default" class="font-sans px-6 py-2.5">
+          Verify
+        </Button>
+      </div>
+
+      <div id="error-message" class="text-red-500 font-sans text-sm hidden"></div>
+      <div id="loading" class="text-muted-foreground font-sans text-sm hidden animate-pulse">Checking domains...</div>
+    </div>
+
+    <!-- API Integration Notice -->
+    <div class="text-sm text-muted-foreground font-sans px-2 -mt-4 text-center md:text-left text-balance">
+      Query programmatically? You can access our API for free. Learn more:&nbsp;
+      <a href="https://github.com/rafifmsn/trust" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-medium">rafifmsn/trust</a>.
+    </div>
+
+    <!-- Results Table Container -->
+    <div id="results-container" class="hidden space-y-4">
+      <h2 class="text-xl font-semibold text-foreground font-sans">Triage Results</h2>
+
+      <div class="overflow-x-auto border border-border rounded-lg bg-card shadow-sm">
+        <Table class="w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead class="font-sans text-muted-foreground">Input Domain</TableHead>
+              <TableHead class="font-sans text-muted-foreground">Status</TableHead>
+              <TableHead class="font-sans text-muted-foreground">Matched Target</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody id="results-body">
+            <!-- Dynamically populated rows -->
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  const domainInput = document.getElementById('domain-input') as HTMLInputElement | null;
+  const verifyBtn = document.getElementById('verify-btn') as HTMLButtonElement | null;
+  const resultsContainer = document.getElementById('results-container') as HTMLDivElement | null;
+  const resultsBody = document.getElementById('results-body') as HTMLTableSectionElement | null;
+  const errorMessage = document.getElementById('error-message') as HTMLDivElement | null;
+  const loading = document.getElementById('loading') as HTMLDivElement | null;
+
+  const statusBadges: Record<string, string> = {
+    'VERIFIED': 'text-success',
+    'HOMOGLYPH_IMPERSONATION': 'text-error',
+    'TYPO_IMPERSONATION': 'text-warning',
+    'UNKNOWN': 'text-muted-foreground',
+  };
+
+  const statusLabels: Record<string, string> = {
+    'VERIFIED': 'Legitimate',
+    'HOMOGLYPH_IMPERSONATION': 'Impersonation (Unicode)',
+    'TYPO_IMPERSONATION': 'Impersonation (Typo)',
+    'UNKNOWN': 'Unknown',
+  };
+
+  async function handleVerify() {
+    if (!domainInput || !verifyBtn || !resultsContainer || !resultsBody || !errorMessage || !loading) return;
+
+    errorMessage.classList.add('hidden');
+    errorMessage.textContent = '';
+    loading.classList.remove('hidden');
+    resultsContainer.classList.add('hidden');
+    resultsBody.innerHTML = '';
+
+    const rawInput = domainInput.value.trim();
+    if (!rawInput) {
+      errorMessage.textContent = 'Please enter at least one domain.';
+      errorMessage.classList.remove('hidden');
+      loading.classList.add('hidden');
+      return;
+    }
+
+    // Split by comma or whitespace, filter out empty elements
+    const domains = rawInput.split(/[\s,]+/).filter(Boolean);
+
+    try {
+      const apiHost = window.location.port === '4321' ? 'http://localhost:3000' : '';
+      const response = await fetch(`${apiHost}/api/v1/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ domains }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || `Server responded with status ${response.status}`);
+      }
+
+      const data = result.data || [];
+      if (data.length === 0) {
+        throw new Error('No results returned from triage pipeline.');
+      }
+
+      data.forEach((item: { input: string; status: string; matched: string | null }) => {
+        const row = document.createElement('tr');
+        row.className = 'border-b border-border hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-colors duration-150';
+
+        // Input Domain Cell
+        const inputCell = document.createElement('td');
+        inputCell.className = 'px-6 py-4 text-sm font-medium text-neutral-900 dark:text-neutral-100 font-mono';
+        inputCell.textContent = item.input;
+        row.appendChild(inputCell);
+
+        // Status Cell
+        const statusCell = document.createElement('td');
+        statusCell.className = 'px-6 py-4 text-sm';
+        const badge = document.createElement('span');
+        badge.className = `text-xs font-semibold whitespace-nowrap ${statusBadges[item.status] || ''}`;
+        badge.textContent = statusLabels[item.status] || item.status;
+        statusCell.appendChild(badge);
+        row.appendChild(statusCell);
+
+        // Matched Target Cell
+        const matchedCell = document.createElement('td');
+        matchedCell.className = 'px-6 py-4 text-sm text-neutral-500 dark:text-neutral-400 font-mono';
+        matchedCell.textContent = item.matched || '-';
+        row.appendChild(matchedCell);
+
+        resultsBody.appendChild(row);
+      });
+
+      resultsContainer.classList.remove('hidden');
+    } catch (err: any) {
+      errorMessage.textContent = err.message || 'Failed to connect to backend api.';
+      errorMessage.classList.remove('hidden');
+    } finally {
+      loading.classList.add('hidden');
+    }
+  }
+
+  verifyBtn?.addEventListener('click', handleVerify);
+  domainInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      handleVerify();
+    }
+  });
+</script>

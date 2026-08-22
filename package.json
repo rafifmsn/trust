@@ -1,0 +1,15 @@
+{
+  "name": "trust",
+  "version": "1.0.0",
+  "type": "module",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "bun --cwd backend dev",
+    "dev:frontend": "bun --cwd frontend dev",
+    "build:frontend": "bun --cwd frontend build",
+    "dev:all": "bun --cwd backend dev & bun --cwd frontend dev"
+  }
+}
