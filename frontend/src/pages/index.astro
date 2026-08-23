@@ -116,7 +116,29 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, TableCap
         body: JSON.stringify({ domains }),
       });
 
-      const result = await response.json();
+      if (response.status === 429) {
+        let rateLimitError = 'Too many requests. Please slow down and try again later.';
+        try {
+          const result = await response.json();
+          if (result && result.error) {
+            rateLimitError = result.error;
+          }
+        } catch {
+          // Fallback if the response is plain text/HTML from a reverse proxy or load balancer
+        }
+        throw new Error(rateLimitError);
+      }
+
+      if (response.status === 413) {
+        throw new Error('Payload too large. Please check fewer domains at a time.');
+      }
+
+      let result;
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error(`Failed to parse response from server (Status ${response.status}).`);
+      }
 
       if (!response.ok || !result.success) {
         throw new Error(result.error || `Server responded with status ${response.status}`);

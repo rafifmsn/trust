@@ -17,12 +17,12 @@ export async function handleVerify(ctx: Context & { body: { domains: string[] } 
   const domainsList = body.domains;
   const count = domainsList.length;
 
-  // Layer 1: Structural Weight Guard (Array length <= 50)
-  if (count > 50) {
+  // Layer 1: Structural Weight Guard (Array length <= 20)
+  if (count > 20) {
     set.status = 413;
     return {
       success: false,
-      error: 'Payload Too Large: Domains list cannot exceed 50 items.',
+      error: 'Payload Too Large: Domains list cannot exceed 20 items.',
     };
   }
 

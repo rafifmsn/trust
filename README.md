@@ -19,7 +19,7 @@
 ## Technical Highlights
 * **Decoupled Monorepo Architecture**: Clean separation of frontend UI (Astro, Starwind UI) and backend API (Elysia, Bun, Redis) using Bun Workspaces.
 * **Dynamic Dev Proxying**: Elysia dynamically proxies static routes to the Astro hot-reloading dev server in development, enabling real-time UI changes on the backend port (3000) without manual rebuilding.
-* **High Throughput**: Capable of processing up to ~14,500 domain verifications per second under concurrency.
+* **High Throughput**: Capable of processing up to ~16,800 domain verifications per second under concurrency (tested with ~9,000+ whitelisted domains).
 * **Hybrid Data Store**: Local RAM caches provide $<1\text{ms}$ query fast-path lookups, backed by a centralized Redis state synchronization cluster.
 * **Zero-Downtime Hot-Reload**: Whitelist seeding changes take effect instantly across all mesh instances via Redis Pub/Sub channels without stack restarts.
 * **Zero-Allocation Levenshtein**: Edit distance matrix calculation uses module-scoped, pre-allocated `Int32Array` buffers to completely eliminate JavaScript garbage collection overhead.
@@ -122,7 +122,7 @@ bun test
 * **Method**: `POST`
 * **Path**: `/api/v1/verify`
 * **Headers**: `Content-Type: application/json`
-* **Body Schema**: (Maximum of 50 domains per request)
+* **Body Schema**: (Maximum of 20 domains per request)
 ```json
 {
   "domains": ["google.com", "paypa1.com", "googĺe.com", "unregistered.com"]
@@ -214,18 +214,18 @@ AMD Ryzen 5 6600H (6 Cores / 12 Threads) @ 4.56GHz, Ubuntu 24.04.4 LTS (Kernel 7
 * **Elysia API container (`trust-backend`)**: Pinned to CPU cores `0-1`, Memory Limit: `512MB`
 * **Redis container (`redis-store`)**: Pinned to CPU core `2`, Memory Limit: `256MB` (Append-Only File disabled)
 
-#### k6 Load Test Metrics (270 Max VUs)
+#### k6 Load Test Metrics (270 Max VUs — Tested with ~9,000+ Whitelisted Domains)
 | Metric | Value |
 | :--- | :--- |
-| **Throughput (Request Rate)** | **16,827.75 req/s** |
-| **Total Processed Requests** | **505,178** |
-| **Average Response Latency** | **4.16 ms** |
-| **Median Response Latency** | **3.88 ms** |
-| **p90 Response Latency** | **7.81 ms** |
-| **p95 Response Latency** | **8.82 ms** |
-| **Max Response Latency** | **18.86 ms** |
+| **Throughput (Request Rate)** | **16,797.55 req/s** |
+| **Total Processed Requests** | **504,374** |
+| **Average Response Latency** | **4.18 ms** |
+| **Median Response Latency** | **3.89 ms** |
+| **p90 Response Latency** | **7.83 ms** |
+| **p95 Response Latency** | **8.85 ms** |
+| **Max Response Latency** | **20.47 ms** |
 | **Network Data Received** | **116 MB** (3.9 MB/s) |
-| **Network Data Sent** | **367 MB** (12 MB/s) |
+| **Network Data Sent** | **366 MB** (12 MB/s) |
 
 #### System Behavior Under Scaling Load
 ![System Behavior Under Scaling Load](./benchmark.png)

@@ -1,4 +1,4 @@
-import { activeWhitelist, maxWhitelistLength } from './synchronizer';
+import { activeWhitelist, maxWhitelistLength, whitelistByLength } from './synchronizer';
 import { extractApexDomain } from '../utils/sanitizer';
 import { isEditDistanceWithinOne } from '../utils/levenshtein';
 
@@ -52,11 +52,20 @@ export function triageDomains(rawDomains: string[]): VerificationResult[] {
     }
 
     let matchedTarget: string | null = null;
-    for (const target of activeWhitelist) {
-      if (isEditDistanceWithinOne(apex, target)) {
-        matchedTarget = target;
-        break;
+    const len = apex.length;
+    const candidateLengths = [len - 1, len, len + 1];
+
+    for (const targetLen of candidateLengths) {
+      const candidates = whitelistByLength.get(targetLen);
+      if (!candidates) continue;
+
+      for (const target of candidates) {
+        if (isEditDistanceWithinOne(apex, target)) {
+          matchedTarget = target;
+          break;
+        }
       }
+      if (matchedTarget) break;
     }
 
     if (matchedTarget) {

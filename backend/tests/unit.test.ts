@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll } from 'bun:test';
 import { cleanRawInput, extractApexDomain } from '../src/utils/sanitizer';
 import { isEditDistanceWithinOne } from '../src/utils/levenshtein';
 import { triageDomains } from '../src/services/triage';
-import { initializeState } from '../src/services/synchronizer';
+import { initializeState, parseSeedFile, whitelistByLength } from '../src/services/synchronizer';
 
 describe('Sanitizer utilities', () => {
   it('should clean raw domain schemes and paths', () => {
@@ -61,5 +61,25 @@ describe('Triage pipeline execution', () => {
     const results = triageDomains(['random-unknown-domain.com']);
     expect(results).toHaveLength(1);
     expect(results[0].status).toBe('UNKNOWN');
+  });
+});
+
+describe('State synchronization & sharding', () => {
+  it('should parse both JSON arrays and raw comma-separated lists of domains', () => {
+    const jsonRaw = '["google.com", "paypal.com"]';
+    const csvRaw = '"google.com", "paypal.com"';
+
+    const parsedJson = parseSeedFile(jsonRaw);
+    const parsedCsv = parseSeedFile(csvRaw);
+
+    expect(parsedJson).toEqual(['google.com', 'paypal.com']);
+    expect(parsedCsv).toEqual(['google.com', 'paypal.com']);
+  });
+
+  it('should group whitelisted domains by length', () => {
+    // google.com is length 10
+    // paypal.com is length 10
+    expect(whitelistByLength.get(10)).toContain('google.com');
+    expect(whitelistByLength.get(10)).toContain('paypal.com');
   });
 });

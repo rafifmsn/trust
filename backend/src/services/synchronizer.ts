@@ -5,6 +5,21 @@ import { redisInstance, redisSubInstance } from '../db/redis';
 // Local, fast-path memory copy of the whitelist.
 export let activeWhitelist = new Set<string>();
 export let maxWhitelistLength = 0;
+export let whitelistByLength = new Map<number, string[]>();
+
+function buildLengthMap(domains: Iterable<string>): Map<number, string[]> {
+  const map = new Map<number, string[]>();
+  for (const domain of domains) {
+    const len = domain.length;
+    let list = map.get(len);
+    if (!list) {
+      list = [];
+      map.set(len, list);
+    }
+    list.push(domain);
+  }
+  return map;
+}
 
 /**
  * Validates and sanitizes seed inputs
@@ -16,6 +31,16 @@ function sanitizeSeedDomains(domains: unknown): string[] {
   return domains
     .map(d => String(d).trim().toLowerCase())
     .filter(d => d.length > 0 && d.includes('.') && !d.includes(' ') && d.length <= 253);
+}
+
+export function parseSeedFile(raw: string): string[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = raw.split(',').map(d => d.trim().replace(/^["']|["']$/g, ''));
+  }
+  return sanitizeSeedDomains(parsed);
 }
 
 /**
@@ -38,8 +63,7 @@ export async function initializeState() {
   if (existsSync(config.SEED_DOMAINS_PATH)) {
     try {
       const raw = readFileSync(config.SEED_DOMAINS_PATH, 'utf-8');
-      const parsed = JSON.parse(raw);
-      domains = sanitizeSeedDomains(parsed);
+      domains = parseSeedFile(raw);
       console.log(`[Synchronizer] Loaded ${domains.length} sanitized domains from seed file.`);
     } catch (err) {
       console.error('[Synchronizer] Failed to read or validate seed file:', err);
@@ -59,6 +83,7 @@ export async function initializeState() {
   }
   activeWhitelist = newSet;
   maxWhitelistLength = newMax;
+  whitelistByLength = buildLengthMap(newSet);
 
   // 4. Sync to Redis (overwriting the base set and keys)
   if (domains.length > 0) {
@@ -137,6 +162,7 @@ function setupSubscriptionListener() {
         // Swap reference atomically for zero-downtime hot-reload
         activeWhitelist = newSet;
         maxWhitelistLength = newMax;
+        whitelistByLength = buildLengthMap(newSet);
         console.log(`[Synchronizer] Local RAM cache hot-reloaded. Count: ${activeWhitelist.size}, Max Length: ${maxWhitelistLength}`);
       } catch (err) {
         console.error('[Synchronizer] Failed to complete hot-reload from Redis:', err);
@@ -156,8 +182,7 @@ export async function triggerStateSync() {
   }
 
   const raw = readFileSync(config.SEED_DOMAINS_PATH, 'utf-8');
-  const parsed = JSON.parse(raw);
-  const domains = sanitizeSeedDomains(parsed);
+  const domains = parseSeedFile(raw);
 
   const pipeline = redisInstance.pipeline();
 
