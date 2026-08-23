@@ -29,7 +29,7 @@
 ├── Dockerfile                    # Multi-stage optimized Alpine builder (Node 22 + Bun)
 ├── docker-compose.yml            # Base Docker Compose services & network mapping
 ├── docker-compose.benchmark.yml  # K6 benchmarking configuration
-├── docker-compose.override.yml   # Local development configuration override
+├── docker-compose.dev.yml        # Local development configuration override
 ├── docker-compose.prod.yml       # Production VPS configuration override
 ├── docs/
 │   └── architecture.md           # Deep-dive architecture & decision blueprint

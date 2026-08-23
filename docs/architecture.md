@@ -127,7 +127,7 @@ Binds the service definitions, persists database data to a dedicated Docker volu
 * `SEED_DOMAINS_PATH=/app/seed/domains.json`
 * Pass-throughs: `ADMIN_API_KEY`, `UMAMI_URL`, and `UMAMI_WEBSITE_ID`.
 
-### Dev Profile (`docker-compose.override.yml`)
+### Dev Profile (`docker-compose.dev.yml`)
 
 * Deploys hot-reload filesystem bind volumes for `./src` and `./seed`.
 * Exposes Elysia to `127.0.0.1:3000` and Redis port `6379` to localhost to support local test running.
