@@ -8,13 +8,16 @@ interface TelemetryParams {
     homoglyphs: number;
     unknown: number;
   };
+  hostname?: string;
+  clientIP?: string;
+  userAgent?: string;
 }
 
 /**
  * Dispatches verification analytical telemetry asynchronously to the Umami REST interface.
  * Implements a 5-second socket timeout and TCP stream drainage for server safety.
  */
-export function recordVerificationTelemetry({ itemCount, resultsSummary }: TelemetryParams) {
+export function recordVerificationTelemetry({ itemCount, resultsSummary, hostname, clientIP, userAgent }: TelemetryParams) {
   if (config.NODE_ENV !== 'production' || !config.UMAMI_WEBSITE_ID) return;
 
   const controller = new AbortController();
@@ -22,12 +25,12 @@ export function recordVerificationTelemetry({ itemCount, resultsSummary }: Telem
     controller.abort();
   }, 5000);
 
+  // Omit the 'name' parameter so Umami registers this as a standard pageview (updating views/visitor charts)
   const requestBody = {
     payload: {
-      hostname: 'rafifmsn.com',
+      hostname: hostname || 'trust.rafifmsn.com',
       url: '/api/v1/verify',
       website: config.UMAMI_WEBSITE_ID,
-      name: 'batch-verify',
       data: {
         items_count: itemCount,
         verified_count: resultsSummary.verified,
@@ -39,12 +42,21 @@ export function recordVerificationTelemetry({ itemCount, resultsSummary }: Telem
     type: 'event',
   };
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Forward client details so Umami can track unique sessions, browsers, and geolocations
+  if (userAgent) {
+    headers['User-Agent'] = userAgent;
+  }
+  if (clientIP) {
+    headers['X-Forwarded-For'] = clientIP;
+  }
+
   fetch(`${config.UMAMI_URL}/api/send`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Server) Umami/Custom-Client',
-    },
+    headers,
     body: JSON.stringify(requestBody),
     signal: controller.signal, // Attach AbortController signal
   })

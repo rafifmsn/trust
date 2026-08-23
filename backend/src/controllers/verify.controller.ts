@@ -87,9 +87,14 @@ export async function handleVerify(ctx: Context & { body: { domains: string[] } 
   }
 
   // Fire non-blocking Umami tracking ping asynchronously
+  const hostname = new URL(request.url).hostname;
+  const userAgent = request.headers.get('user-agent') || undefined;
   recordVerificationTelemetry({
     itemCount: count,
     resultsSummary,
+    hostname,
+    clientIP,
+    userAgent,
   });
 
   // 4. Return results
