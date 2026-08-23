@@ -1,6 +1,20 @@
-# rafifmsn/trust
+<p align="center">
+  <img src="./trust-thumb.jpg" alt="Trust" width="100%" />
+</p>
 
-A high-performance, containerized link verification microservice built natively with Bun, Elysia, Redis, and Astro. Designed to classify incoming URLs/domains against a trusted whitelist database in under 2ms using a decoupled 5-layer triage pipeline.
+<p align="center">
+  <a href="https://github.com/rafifmsn/trust/actions/workflows/ci.yml">
+    <img src="https://github.com/rafifmsn/trust/actions/workflows/ci.yml/badge.svg" alt="CI Build Status" />
+  </a>
+  <a href="https://github.com/rafifmsn/trust/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/rafifmsn/trust" alt="License" />
+  </a>
+  <a href="https://elysiajs.com">
+    <img src="https://img.shields.io/badge/built%20with-Elysia-0085de.svg" alt="Built with Elysia" />
+  </a>
+</p>
+
+<p align="center">A high-performance, containerized link verification microservice built natively with Bun, Elysia, Redis, and Astro. Designed to classify incoming URLs/domains against a trusted whitelist database using high-throughput, sub-millisecond O(1) fast-path lookups.</p>
 
 ## Technical Highlights
 * **Decoupled Monorepo Architecture**: Clean separation of frontend UI (Astro, Starwind UI) and backend API (Elysia, Bun, Redis) using Bun Workspaces.
@@ -12,36 +26,37 @@ A high-performance, containerized link verification microservice built natively 
 
 ## Repository Tree
 ```
-├── Dockerfile                  # Multi-stage optimized Alpine builder (Node 22 + Bun)
-├── docker-compose.yml          # Base Docker Compose services & network mapping
-├── docker-compose.override.yml # Local development configuration override
-├── docker-compose.prod.yml     # Production VPS configuration override
+├── Dockerfile                    # Multi-stage optimized Alpine builder (Node 22 + Bun)
+├── docker-compose.yml            # Base Docker Compose services & network mapping
+├── docker-compose.benchmark.yml  # K6 benchmarking configuration
+├── docker-compose.override.yml   # Local development configuration override
+├── docker-compose.prod.yml       # Production VPS configuration override
 ├── docs/
-│   └── architecture.md         # Deep-dive architecture & decision blueprint
-├── package.json                # Root workspaces package configuration
+│   └── architecture.md           # Deep-dive architecture & decision blueprint
+├── package.json                  # Root workspaces package configuration
 ├── .github/
 │   └── workflows/
-│       └── ci.yml              # GitHub Actions CI pipeline
+│       └── ci.yml                # GitHub Actions CI pipeline
 ├── backend/
 │   ├── package.json
 │   ├── src/
-│   │   ├── index.ts            # Elysia entrypoint and process signal handlers
-│   │   ├── config.ts           # Env configuration parser
-│   │   ├── routes/             # Route definitions & static file serving/proxy
-│   │   ├── controllers/        # Domain triage and sync controls
-│   │   └── utils/              # eTLD+1 Sanitizer (Punycode normalizer) & Levenshtein
+│   │   ├── index.ts              # Elysia entrypoint and process signal handlers
+│   │   ├── config.ts             # Env configuration parser
+│   │   ├── routes/               # Route definitions & static file serving/proxy
+│   │   ├── controllers/          # Domain triage and sync controls
+│   │   └── utils/                # eTLD+1 Sanitizer (Punycode normalizer) & Levenshtein
 │   └── tests/
-│       └── unit.test.ts        # Backend unit test suite
+│       └── unit.test.ts          # Backend unit test suite
 ├── frontend/
 │   ├── package.json
 │   ├── src/
 │   │   ├── pages/
-│   │   │   ├── index.astro     # Core dashboard UI
-│   │   │   └── 404.astro       # Custom static 404 error page
-│   │   └── layouts/            # Base templates & Starwind styling
-│   └── astro.config.ts         # Astro static compilation config
+│   │   │   ├── index.astro       # Core dashboard UI
+│   │   │   └── 404.astro         # Custom static 404 error page
+│   │   └── layouts/              # Base templates & Starwind styling
+│   └── astro.config.ts           # Astro static compilation config
 └── seed/
-    └── domains.json            # Whitelist base seed file
+    └── domains.json              # Whitelist base seed file
 ```
 
 ## Quick Start Configuration
@@ -76,7 +91,7 @@ Since this repository uses Bun Workspaces, you can run all commands directly fro
 ## Managing Whitelisted Brands (Seeding)
 
 ### How to Add New Domains to the Whitelist:
-1. Open the seed file at [`seed/domains.json`](file:///home/rafif/Documents/Dev/Github/trust/seed/domains.json).
+1. Open the seed file at [`seed/domains.json`](./seed/domains.json).
 2. Append your new target apex domain to the array (e.g. `"mybrand.com"`).
 3. Save the file.
 4. **Load the changes using one of the following methods**:
@@ -110,7 +125,7 @@ bun test
 * **Body Schema**: (Maximum of 50 domains per request)
 ```json
 {
-  "domains": ["google.com", "paypa1.com", "googĺe.com"]
+  "domains": ["google.com", "paypa1.com", "googĺe.com", "unregistered.com"]
 }
 ```
 * **Sample Response**:
@@ -132,10 +147,21 @@ bun test
       "input": "googĺe.com",
       "matched": null,
       "status": "HOMOGLYPH_IMPERSONATION"
+    },
+    {
+      "input": "unregistered.com",
+      "matched": null,
+      "status": "UNKNOWN"
     }
   ]
 }
 ```
+
+* **Classification Statuses**:
+  * `VERIFIED`: Exact match against a whitelisted brand.
+  * `TYPO_IMPERSONATION`: Fuzzy match within edit distance of 1 from a whitelisted brand (typosquatting).
+  * `HOMOGLYPH_IMPERSONATION`: Contains Unicode lookalike characters (homoglyph spoofing).
+  * `UNKNOWN`: Safe/unrecognized domain that does not resemble any whitelisted brands.
 
 ### 2. Administrative Hot-Reload
 * **Method**: `POST`
@@ -145,7 +171,7 @@ bun test
 ## Deployment & Docker Integration
 
 ### Multi-Stage Docker Build
-Our [`Dockerfile`](file:///home/rafif/Documents/Dev/Github/trust/Dockerfile) compiles the Astro frontend under `node:22-alpine` to satisfy Astro engine requirements, then copies the compiled static assets into the fast `oven/bun:1.2.2-alpine` runtime runner for Elysia.
+Our [`Dockerfile`](./Dockerfile) compiles the Astro frontend under `node:22-alpine` to satisfy Astro engine requirements, then copies the compiled static assets into the fast `oven/bun:1.2.2-alpine` runtime runner for Elysia.
 
 To build and run the production stack:
 ```bash
@@ -177,17 +203,15 @@ To measure the API's performance without resource contention (preventing `k6` an
    docker compose -f docker-compose.benchmark.yml down
    ```
 
-### Official Performance Benchmark Results
+### Performance Benchmark Results
 
 Here are the results of a 30-second load test run under the isolated benchmark configuration:
 
 #### Host System Specifications
-* **CPU**: AMD Ryzen 5 6600H (6 Cores / 12 Threads) @ 4.56GHz
-* **RAM**: 16 GB DDR5
-* **OS**: Ubuntu 24.04.4 LTS (Kernel 7.0.0)
+AMD Ryzen 5 6600H (6 Cores / 12 Threads) @ 4.56GHz, Ubuntu 24.04.4 LTS (Kernel 7.0.0)
 
 #### Container Resource Allocations
-* **Elysia API container (`trust-api`)**: Pinned to CPU cores `0-1`, Memory Limit: `512MB`
+* **Elysia API container (`trust-backend`)**: Pinned to CPU cores `0-1`, Memory Limit: `512MB`
 * **Redis container (`redis-store`)**: Pinned to CPU core `2`, Memory Limit: `256MB` (Append-Only File disabled)
 
 #### k6 Load Test Metrics (270 Max VUs)
@@ -210,4 +234,4 @@ Here are the results of a 30-second load test run under the isolated benchmark c
 
 > Note: 99.44% of HTTP requests returned 429 (Rate Limited) or 413 (Payload Too Large). This is the correct, expected behavior of the triage pipeline under load, proving that the abuse protection layers actively shield the API from resource depletion under heavy stress.
 
-> The deep-dive of engineering decisions, mathematical optimizations, and serverless constraints are available in **[docs/architecture.md](file:///home/rafif/Documents/Dev/Github/trust/docs/architecture.md)**.
+> The deep-dive of engineering decisions, mathematical optimizations, and serverless constraints are available in **[docs/architecture.md](./docs/architecture.md)**.

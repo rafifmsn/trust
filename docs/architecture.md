@@ -1,10 +1,6 @@
-# rafifmsn/trust
-
-## Technical Architecture Manual
+# Technical Architecture Manual
 
 This document provides a clean overview of the architectural flow, component topologies, and engineering decisions implemented in the rafifmsn/trust.
-
----
 
 ## 1. High-Level System Flow & Ingress
 
@@ -16,7 +12,6 @@ flowchart TD
     Edge -->|Ports 80/443| Caddy["VPS Host Caddy<br/>(caddy_proxy network)"]
     Caddy -->|Port 3000| API["Bun + Elysia API Node<br/>(Local RAM Cache O(1) Set)"]
     API <-->|Rate Limiter & Pub/Sub| Redis[("Redis Database")]
-
 ```
 
 ### Development Proxy & Decoupled Frontend
@@ -34,8 +29,6 @@ Edge proxy routing headers are resolved to identify client IP. We inspect header
 3. `x-forwarded-for` (Fallback proxy array)
 4. `127.0.0.1` (Local loopback default)
 
----
-
 ## 2. Decoupled 5-Layer Triage Pipeline
 
 All queries submitted to `/api/v1/verify` pass through a cascading 5-layer pipeline designed to execute fast checks first and avoid expensive computational blocks:
@@ -52,12 +45,11 @@ flowchart TD
     L3 -->|Contains 'xn--'| Homoglyph["Flag as HOMOGLYPH_IMPERSONATION"]
     L3 -->|Standard ASCII| L4{"Layer 4: Local RAM Whitelist Map"}
     
-    L4 -->|O(1) Exact Match| Verified["Status: VERIFIED"]
+    L4 -->|"O(1) Exact Match"| Verified["Status: VERIFIED"]
     L4 -->|Miss| L5{"Layer 5: Levenshtein Matrix"}
     
     L5 -->|Edit Distance <= 1| Typo["Flag as TYPO_IMPERSONATION"]
     L5 -->|Distance > 1| Unknown["Status: UNKNOWN"]
-
 ```
 
 ### Pipeline Details:
@@ -67,8 +59,6 @@ flowchart TD
 * **Layer 3: Homoglyph Triage (O(N))**: Instantly flags internationalized homoglyph attacks containing `xn--` spoof headers as `HOMOGLYPH_IMPERSONATION`. To support raw Unicode domain submissions in the API, the sanitizer runs `domainToASCII` to normalize homoglyphs (e.g. `googĺe.com` -> `xn--googe-95a.com`) before performing suffix checking.
 * **Layer 4: In-Memory Exact Match (O(N))**: Resolves clean eTLD+1 apex domains (parsed via suffix-aware static Trie `tldts`) against a local JavaScript `Set` cache in RAM. Matched items return `VERIFIED`.
 * **Layer 5: Levenshtein Distance Matrix (O(N * M))**: Fuzzy check computes insertion/deletion/substitution distance of $\le 1$ against whitelisted domains (returning `TYPO_IMPERSONATION`).
-
----
 
 ## 3. Zero-Downtime Hot-Reload Setup
 
@@ -89,19 +79,14 @@ sequenceDiagram
     Nodes->>Redis: Query SMEMBERS whitelist_set
     Redis-->>Nodes: Return full sanitized domain list
     Nodes->>Nodes: Rebuild & Atomically Swap RAM Pointer (Zero Downtime)
-
 ```
 
 1. **State Seeding**: On start, the server reads `seed/domains.json`, sanitizes the input list, populates Redis, and constructs the local RAM cache.
 2. **Cluster synchronization**: When an admin triggers `/api/v1/admin/sync` (protected by the `ADMIN_API_KEY` Authorization token):
-* The triggered container reads the updated mount file, reconciles the Redis `whitelist_set` keys, and broadcasts a reload signal over the `state:updates` Redis Pub/Sub channel.
-* All active API instances capture the signal, execute `SMEMBERS whitelist_set` (replacing the blocking `KEYS` command), rebuild local memory caches, and atomically swap pointers with zero downtime.
-
-
+    * The triggered container reads the updated mount file, reconciles the Redis `whitelist_set` keys, and broadcasts a reload signal over the `state:updates` Redis Pub/Sub channel.
+    * All active API instances capture the signal, execute `SMEMBERS whitelist_set` (replacing the blocking `KEYS` command), rebuild local memory caches, and atomically swap pointers with zero downtime.
 3. **Graceful Shutdown**: Intercepts `SIGTERM` / `SIGINT` signals to unsubscribe from Pub/Sub channels and cleanly drain/close the Redis connection pools.
 4. **Boot Retry Resilience**: If the API container boots before Redis is online, it retries connecting 5 times with a 1.5-second delay to prevent container crash-loops.
-
----
 
 ## 4. Telemetry Architecture (Client-less HttpClient)
 
@@ -115,15 +100,12 @@ flowchart TD
     Socket --> T1["Apply 5-Second Abort Timeout (AbortController)"]
     Socket --> T2["Format Native JSON Payload (Website ID & metadata)"]
     Socket --> T3["Drain TCP Response Stream (.text() consumption)"]
-
 ```
 
 * **Client Safety**: Operates as an un-awaited background micro-task so it never blocks HTTP responses.
 * **Self-Contained Rejections**: Errors and connection timeouts are captured inside the fetch `.catch()` block. This prevents unhandled promise rejections.
 * **Socket Leak Protection**: Always resolves and consumes the response data stream via `res.text().catch(() => {})`. This forces the engine to immediately drain and release TCP network sockets rather than leaving them hanging in memory.
 * **Non-Prod Isolation**: Telemetry remains completely inactive in local development modes (`NODE_ENV !== 'production'`).
-
----
 
 ## 5. Security & Validation Controls
 
@@ -132,10 +114,6 @@ flowchart TD
 * **Levenshtein Boundary Guard**:
 * Domain inputs longer than 253 characters (RFC 1035 max DNS limits) are rejected immediately as `UNKNOWN`.
 * Max brand length (`maxWhitelistLength`) is calculated dynamically on cache updates. If an incoming domain's length is larger than `maxWhitelistLength + 1`, the edit-distance loop is bypassed in $O(1)$ time, mitigating ReDoS/CPU exhaustion attacks.
-
-
-
----
 
 ## 6. Multi-Environment Docker Setup
 

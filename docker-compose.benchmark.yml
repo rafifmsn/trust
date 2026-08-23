@@ -1,5 +1,5 @@
 services:
-  trust-api:
+  trust-benchmark:
     build:
       context: .
       dockerfile: Dockerfile
