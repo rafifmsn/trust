@@ -1,14 +1,14 @@
 ---
 import { Font } from 'astro:assets';
 interface Props {
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   ogImage?: string;
 }
 
 const {
-  title,
-  description,
+  title = 'Trust - Rafif Muchsin',
+  description = 'Trust (rafifmsn/trust) is a zero-trust domain triage dashboard to instantly analyze and verify domains for typo-squatting, homoglyph impersonations, and phishing indicators in real-time.',
   ogImage = '/og.png'
 } = Astro.props;
 

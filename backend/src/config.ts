@@ -10,7 +10,7 @@ export const config = {
   RATE_LIMIT_REFILL_RATE: parseInt(process.env.RATE_LIMIT_REFILL_RATE || '10', 10),
 
   // Telemetry (Umami)
-  UMAMI_URL: process.env.UMAMI_URL || 'https://analytics.rafifmsn.com',
+  UMAMI_URL: process.env.UMAMI_URL || 'https://go.rafifmsn.com',
   UMAMI_WEBSITE_ID: process.env.UMAMI_WEBSITE_ID || '',
 
   // Seed configuration (Smart resolver for both container root /app and monorepo workspace sub-paths)
