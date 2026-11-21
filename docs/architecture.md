@@ -9,8 +9,8 @@ The application separates edge routing, SSL termination, and client validation f
 ```mermaid
 flowchart TD
     Client["Client Request"] --> Edge["Cloudflare / Tencent Edge<br/>(Inject Connecting-IP)"]
-    Edge -->|Ports 80/443| Caddy["VPS Host Caddy<br/>(caddy_proxy network)"]
-    Caddy -->|Port 3000| API["Bun + Elysia API Node<br/>(Local RAM Cache O(1) Set)"]
+    Edge -->|Ports 80/443| Proxy["Reverse Proxy"]
+    Proxy -->|Port 3000| API["Bun + Elysia API Node<br/>(Local RAM Cache O(1) Set)"]
     API <-->|Rate Limiter & Pub/Sub| Redis[("Redis Database")]
 ```
 
@@ -117,9 +117,3 @@ Binds the service definitions, persists database data to a dedicated Docker volu
 
 * Sets strict CPU core allocations (`cpuset: "0-1"` for Elysia API, `cpuset: "2"` for Redis) and RAM caps (512MB for API, 256MB for Redis) to ensure precise, hardware-partitioned load testing.
 * Disables Redis Append-Only File (`--appendonly no`) to eliminate disk I/O latency bottlenecks during benchmarks.
-
-### Prod Profile (`docker-compose.prod.yml`)
-
-* Limits container logs size (`max-size: "10m"`, `max-file: "3"`) to prevent storage leakage.
-* Mounts seed directories as read-only.
-* Hides host-level ports and joins the external `caddy_proxy` network, securing internal resources.

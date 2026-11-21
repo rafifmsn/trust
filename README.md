@@ -30,7 +30,6 @@
 ├── docker-compose.yml            # Base Docker Compose services & network mapping
 ├── docker-compose.benchmark.yml  # K6 benchmarking configuration
 ├── docker-compose.dev.yml        # Local development configuration override
-├── docker-compose.prod.yml       # Production VPS configuration override
 ├── docs/
 │   └── architecture.md           # Deep-dive architecture & decision blueprint
 ├── package.json                  # Root workspaces package configuration
@@ -173,9 +172,9 @@ bun test
 ### Multi-Stage Docker Build
 Our [`Dockerfile`](./Dockerfile) compiles the Astro frontend under `node:22-alpine` to satisfy Astro engine requirements, then copies the compiled static assets into the fast `oven/bun:1.2.2-alpine` runtime runner for Elysia.
 
-To build and run the production stack:
+To build and run the stack:
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 ```
 
 ## Load Testing & Benchmarks (k6)
